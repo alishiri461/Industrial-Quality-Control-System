@@ -10,9 +10,9 @@ def liveness() -> dict[str, str]:
 @router.get("/ready")
 def readiness() -> dict[str, str]:
     settings = get_settings()
-    status = "ready" if settings.inference_backend != "disabled" else "degraded"
+    # A configured backend name is not proof that weights loaded or cameras are healthy.
     return {
-        "status": status,
+        "status": "degraded",
         "inference_backend": settings.inference_backend,
-        "note": "Readiness does not yet validate model weights or camera connectivity.",
+        "note": "Readiness remains degraded until model loading and camera health checks are implemented.",
     }
