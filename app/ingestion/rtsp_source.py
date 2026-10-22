@@ -137,11 +137,27 @@ class RTSPCameraWorker:
             try:
                 # OpenCV backend support for timeout properties varies by build/transport.
                 capture = cv2.VideoCapture()
+                params: list[int] = []
                 if hasattr(cv2, "CAP_PROP_OPEN_TIMEOUT_MSEC"):
-                    capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, self.config.open_timeout_ms)
+                    params.extend([cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, self.config.open_timeout_ms])
                 if hasattr(cv2, "CAP_PROP_READ_TIMEOUT_MSEC"):
-                    capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, self.config.read_timeout_ms)
-                opened = capture.open(self.config.source_url.get_secret_value())
+                    params.extend([cv2.CAP_PROP_READ_TIMEOUT_MSEC, self.config.read_timeout_ms])
+                url = self.config.source_url.get_secret_value()
+                try:
+                    if params and hasattr(cv2, "CAP_FFMPEG"):
+                        opened = capture.open(url, cv2.CAP_FFMPEG, params)
+                    else:
+                        opened = capture.open(url)
+                except (TypeError, cv2.error):
+                    # Some OpenCV builds do not support open-timeout parameters. The fallback
+                    # is functional but may not provide bounded read/shutdown latency.
+                    capture.release()
+                    capture = cv2.VideoCapture(url)
+                    opened = capture.isOpened()
+                    logger.warning(
+                        "OpenCV timeout parameters unsupported; validate shutdown behavior: camera_id=%s",
+                        self.config.id,
+                    )
                 if not opened or not capture.isOpened():
                     raise RuntimeError("Unable to open RTSP stream")
                 delay = self.config.reconnect_initial_seconds
