@@ -149,8 +149,10 @@ class RTSPCameraWorker:
                     else:
                         opened = capture.open(url)
                 except (TypeError, cv2.error):
-                    # Some OpenCV builds do not support open-timeout parameters. The fallback
-                    # is functional but may not provide bounded read/shutdown latency.
+                    opened = False
+                if not opened and params:
+                    # Some OpenCV builds reject timeout parameters without raising. Retry without
+                    # them, but clearly warn that bounded read/shutdown latency is not guaranteed.
                     capture.release()
                     capture = cv2.VideoCapture(url)
                     opened = capture.isOpened()
