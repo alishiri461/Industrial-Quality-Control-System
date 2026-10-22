@@ -52,5 +52,5 @@ class InspectionResult(BaseModel):
 class CameraInfo(BaseModel):
     id: str
     name: str
-    source_type: str
+    source_type: str = "rtsp"
     enabled: bool = True
