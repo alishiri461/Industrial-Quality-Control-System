@@ -1,6 +1,4 @@
 from contextlib import asynccontextmanager
-import logging
-
 from fastapi import FastAPI
 
 from app.api.routes import cameras, health, inspections, models
@@ -9,8 +7,6 @@ from app.ingestion.camera_manager import CameraManager
 from app.infrastructure.database import initialize_database
 
 settings = get_settings()
-logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
