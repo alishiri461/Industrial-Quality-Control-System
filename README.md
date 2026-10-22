@@ -25,22 +25,29 @@ Python 3.12 is the initial target. Create a virtual environment, install the pro
 
 ```bash
 python -m venv .venv
-# Windows: .venv\\Scripts\\activate
+# Windows: .venv\Scripts\activate
 # Linux/macOS: source .venv/bin/activate
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,vision]"
 # Copy .env.example to .env and review every setting.
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-The scaffold starts without loading YOLO weights. Model execution and RTSP capture are intentionally not enabled until their dependencies, hardware, and model license are confirmed.
+The API starts without loading YOLO weights. RTSP capture is implemented as an optional OpenCV-backed worker and remains inactive unless camera entries are configured in the protected local `.env`. Actual inference and quality decisions remain disabled until the dataset, hardware, thresholds, and model license are approved.
+
+## RTSP camera configuration
+
+Set `CAMERAS_JSON` in the protected local `.env` to a JSON array. Each camera entry requires `id`, `name`, and `source_url` (an `rtsp://` or `rtsps://` URL). Optional values include `enabled`, `open_timeout_ms`, `read_timeout_ms`, `reconnect_initial_seconds`, and `reconnect_max_seconds`.
+
+Never commit real camera URLs or credentials. Restrict the service host's outbound network access to approved camera subnets. OpenCV timeout support varies by build and backend; verify actual reconnect and shutdown behavior on the target host.
 
 ## API
 
 - `GET /api/v1/health/live` — process liveness.
 - `GET /api/v1/health/ready` — readiness status.
 - `GET /api/v1/models` — registered inference backends.
-- `GET /api/v1/cameras` — configured camera metadata (credentials are never returned).
-- `POST /api/v1/inspections` — create an inspection from metadata; live frame execution is enabled only when a suitable engine is configured.
+- `GET /api/v1/cameras` — configured camera metadata; source URLs and credentials are omitted.
+- `GET /api/v1/cameras/status` — capture worker connectivity, reconnect count, frame count, and last-frame age.
+- `POST /api/v1/inspections` — request an inspection; returns an explicit unavailable error while inference is unconfigured.
 - `GET /api/v1/inspections/{inspection_id}` — retrieve a saved inspection.
 
 Interactive OpenAPI docs are available at `/docs` when the service is running.
@@ -53,5 +60,6 @@ Interactive OpenAPI docs are available at `/docs` when the service is running.
 4. Approve model/runtime licenses.
 5. Configure authentication, RTSP network allowlists, secret management, backup/restore, monitoring, and retention.
 6. Complete camera-disconnect, load, recovery, and acceptance tests before production rollout.
+7. Verify OpenCV timeout behavior and bounded shutdown on the actual camera/backend combination.
 
 See `docs/architecture.md`, `docs/data-and-model-validation.md`, and `docs/deployment.md`.
