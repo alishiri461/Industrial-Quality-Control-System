@@ -134,6 +134,7 @@ class RTSPCameraWorker:
         while not self._stop.is_set():
             self._set_state("connecting")
             capture = None
+            connected_at: float | None = None
             try:
                 # OpenCV backend support for timeout properties varies by build/transport.
                 capture = cv2.VideoCapture()
@@ -162,7 +163,7 @@ class RTSPCameraWorker:
                     )
                 if not opened or not capture.isOpened():
                     raise RuntimeError("Unable to open RTSP stream")
-                delay = self.config.reconnect_initial_seconds
+                connected_at = time.monotonic()
                 self._set_state("connected")
                 logger.info("RTSP camera connected: camera_id=%s", self.config.id)
 
@@ -178,6 +179,8 @@ class RTSPCameraWorker:
                     self._publish(FramePacket(self.config.id, now, frame))
             except Exception as exc:
                 if not self._stop.is_set():
+                    if connected_at is not None and time.monotonic() - connected_at >= 10.0:
+                        delay = self.config.reconnect_initial_seconds
                     with self._lock:
                         self._reconnect_count += 1
                     # Error message is deliberately generalized to avoid leaking RTSP credentials.
