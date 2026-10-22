@@ -1,3 +1,5 @@
+from urllib.parse import urlsplit
+
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 class CameraConfig(BaseModel):
@@ -26,8 +28,13 @@ class CameraConfig(BaseModel):
     @classmethod
     def valid_rtsp_url(cls, value: SecretStr) -> SecretStr:
         url = value.get_secret_value().strip()
-        if not url.lower().startswith(("rtsp://", "rtsps://")):
-            raise ValueError("source_url must use rtsp:// or rtsps://")
-        if not url.split("://", 1)[1]:
-            raise ValueError("source_url must include a host")
+        try:
+            parsed = urlsplit(url)
+            valid = parsed.scheme.lower() in {"rtsp", "rtsps"} and bool(parsed.hostname)
+            # Accessing .port also validates malformed port values.
+            _ = parsed.port
+        except ValueError as exc:
+            raise ValueError("source_url must be a valid RTSP URL with a host") from exc
+        if not valid:
+            raise ValueError("source_url must be a valid RTSP URL with a host")
         return SecretStr(url)
